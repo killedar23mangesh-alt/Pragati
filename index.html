@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pragati - GK AI App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: #1e3a8a;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            font-size: 22px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        #chat-box {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 12px 15px;
+            border-radius: 15px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        .user-msg {
+            background-color: #2563eb;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .ai-msg {
+            background-color: white;
+            color: #1f2937;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        #input-area {
+            display: flex;
+            padding: 10px;
+            background-color: white;
+            border-top: 1px solid #ddd;
+        }
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+        }
+        button {
+            background-color: #1e3a8a;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin-left: 8px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+
+<header>Pragati - General Knowledge AI</header>
+
+<div id="chat-box">
+    <div class="message ai-msg">नमस्कार! मी 'प्रगती' AI आहे. मला सामान्य ज्ञान (General Knowledge), इतिहास, भूगोल किंवा विज्ञानाबद्दल कोणताही प्रश्न विचारा!</div>
+</div>
+
+<div id="input-area">
+    <input type="text" id="user-input" placeholder="तुमचा GK प्रश्न येथे लिहा..." onkeypress="if(event.key==='Enter') sendMessage()">
+    <button id="send-btn" onclick="sendMessage()">विचारा</button>
+</div>
+
+<script>
+    // येथे तुमची Google AI Studio ची मोफत API Key पेस्ट करा
+    const API_KEY = "AQ.Ab8RN6IdBXCMLBVsTXaGHuqAJHzdVrT4MxdXV3ewOORzP8jfzg"; 
+
+    async function sendMessage() {
+        const inputField = document.getElementById("user-input");
+        const sendBtn = document.getElementById("send-btn");
+        const chatBox = document.getElementById("chat-box");
+        const question = inputField.value.trim();
+
+        if (!question) return;
+
+        // युजरचा प्रश्न स्क्रीनवर दाखवा
+        chatBox.innerHTML += `<div class="message user-msg">${question}</div>`;
+        inputField.value = "";
+        sendBtn.disabled = true;
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        // लोडिंग मेसेज
+        const loadingId = "loading-" + Date.now();
+        chatBox.innerHTML += `<div class="message ai-msg" id="${loadingId}">माहिती शोधत आहे...</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+            const prompt = `तू 'प्रगती' नावाचा एक तज्ज्ञ General Knowledge (सामान्य ज्ञान) AI असिस्टंट आहेस. फक्त सामान्य ज्ञान, इतिहास, भूगोल, विज्ञान आणि चालू घडामोडींवर आधारित प्रश्नांची अचूक, सोप्या आणि विद्यार्थी-स्नेही भाषेत उत्तरे दे. वापरकर्त्याने ज्या भाषेत (मराठी, हिंदी किंवा इंग्रजी) प्रश्न विचारला आहे, त्याच भाषेत उत्तर दे. प्रश्न: ${question}`;
+
+            const response = await fetch(`https://googleapis.com{API_KEY}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error.message);
+            }
+
+            const reply = data.candidates[0].content.parts[0].text.replace(/\*\*/g, "").replace(/\n/g, "<br>");
+            document.getElementById(loadingId).innerHTML = reply;
+        } catch (error) {
+            document.getElementById(loadingId).innerHTML = "क्षमस्व, तांत्रिक अडचण आली आहे: " + error.message;
+        }
+
+        sendBtn.disabled = false;
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+</script>
+
+</body>
+      </html>
