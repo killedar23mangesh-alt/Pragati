@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>College AI Assistant</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body {
+      margin: 0; background: #0f172a; color: #f8fafc;
+      display: flex; justify-content: center; align-items: center; height: 100vh;
+    }
+    .app-container {
+      width: 100%; max-width: 500px; height: 92vh; background: #1e293b;
+      border-radius: 16px; display: flex; flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden;
+    }
+    .header {
+      background: #2563eb; padding: 15px; text-align: center; font-weight: bold;
+      font-size: 1.2rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    .header button {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+    }
+    .api-box {
+      background: #334155; padding: 10px; display: flex; gap: 8px;
+    }
+    .api-box input {
+      flex: 1; padding: 8px; border-radius: 8px; border: none; outline: none;
+    }
+    .api-box button {
+      background: #10b981; color: white; border: none; padding: 8px 12px;
+      border-radius: 8px; cursor: pointer; font-weight: bold;
+    }
+    .chat-box {
+      flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+    }
+    .msg {
+      max-width: 80%; padding: 10px 14px; border-radius: 14px; line-height: 1.4; font-size: 0.95rem;
+      white-space: pre-wrap; word-wrap: break-word;
+    }
+    .user-msg { background: #2563eb; align-self: flex-end; border-bottom-right-radius: 2px; }
+    .ai-msg { background: #334155; align-self: flex-start; border-bottom-left-radius: 2px; }
+    .input-area {
+      display: flex; padding: 12px; background: #0f172a; gap: 8px; align-items: center;
+    }
+    .input-area input {
+      flex: 1; padding: 12px; border-radius: 24px; border: none; outline: none;
+      background: #1e293b; color: white; font-size: 1rem;
+    }
+    .icon-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
+      font-size: 1.2rem; display: flex; justify-content: center; align-items: center;
+    }
+    #mic-btn { background: #ef4444; color: white; }
+    #mic-btn.listening { animation: pulse 1s infinite; background: #22c55e; }
+    #send-btn { background: #2563eb; color: white; }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header">
+    <span>🎓 College AI Assistant</span>
+    <button id="voice-toggle">🔊 Voice: ON</button>
+  </div>
+
+  <div class="api-box" id="api-section">
+    <input type="password" id="api-key-input" placeholder="Paste your Free Gemini API Key..." />
+    <button onclick="saveApiKey()">Save</button>
+  </div>
+
+  <div class="chat-box" id="chat-box">
+    <div class="msg ai-msg">Namaskar! Mi tumcha College AI Assistant aahe. Type kara kinva Mic dabun bola!</div>
+  </div>
+
+  <div class="input-area">
+    <button class="icon-btn" id="mic-btn" title="Speak">🎤</button>
+    <input type="text" id="user-input" placeholder="Type your question..." onkeypress="if(event.key==='Enter') sendMessage()" />
+    <button class="icon-btn" id="send-btn" onclick="sendMessage()" title="Send">➤</button>
+  </div>
+</div>
+
+<script>
+  let voiceEnabled = true;
+  const chatBox = document.getElementById('chat-box');
+  const userInput = document.getElementById('user-input');
+  const micBtn = document.getElementById('mic-btn');
+  const voiceToggle = document.getElementById('voice-toggle');
+
+  window.onload = () => {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) {
+      document.getElementById('api-key-input').value = savedKey;
+    }
+  };
+
+  function saveApiKey() {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (key) {
+      localStorage.setItem('gemini_api_key', key);
+      alert('API Key Saved Successfully!');
+    } else {
+      alert('Please enter a valid API Key.');
+    }
+  }
+
+  voiceToggle.onclick = () => {
+    voiceEnabled = !voiceEnabled;
+    voiceToggle.innerText = voiceEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
+    if (!voiceEnabled && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  };
+
+  function appendMessage(text, sender) {
+    const div = document.createElement('div');
+    div.className = `msg ${sender}-msg`;
+    div.innerText = text;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function speakText(text) {
+    if (!voiceEnabled || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    // Remove markdown symbols (*, #, `) so voice sounds natural
+    const cleanText = text.replace(/[*#`]/g, '');
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'en-IN';
+    window.speechSynthesis.speak(utterance);
+  }
+
+  // Fixed Voice Input (Speech-to-Text)
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    micBtn.onclick = () => {
+      try {
+        recognition.start();
+        micBtn.classList.add('listening');
+      } catch (e) {
+        recognition.stop();
+        micBtn.classList.remove('listening');
+      }
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      userInput.value = transcript;
+      micBtn.classList.remove('listening');
+      sendMessage();
+    };
+
+    recognition.onerror = (event) => {
+      micBtn.classList.remove('listening');
+      if (event.error === 'not-allowed') {
+        alert('Microphone permission denied! Browser settings madhun Mic allow kara.');
+      }
+    };
+
+    recognition.onend = () => {
+      micBtn.classList.remove('listening');
+    };
+  } else {
+    micBtn.style.display = 'none';
+  }
+
+  // Fixed Gemini API Call
+  async function sendMessage() {
+    const text = userInput.value.trim();
+    const apiKey = (localStorage.getItem('gemini_api_key') || document.getElementById('api-key-input').value).trim();
+
+    if (!text) return;
+    if (!apiKey) {
+      alert('Krupaya aadhi tumchi Free Gemini API Key taka ani Save daban!');
+      return;
+    }
+
+    appendMessage(text, 'user');
+    userInput.value = '';
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'msg ai-msg';
+    loadingDiv.innerText = 'Thinking...';
+    chatBox.appendChild(loadingDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    try {
+      const response = await fetch(
+        `https://googleapis.com{encodeURIComponent(apiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: "You are a helpful college assistant. Keep answers clear, accurate, and concise. User query: " + text
+              }]
+            }]
+          })
+        }
+      );
+
+      const data = await response.json();
+      if (chatBox.contains(loadingDiv)) {
+        chatBox.removeChild(loadingDiv);
+      }
+
+      if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts) {
+        const reply = data.candidates[0].content.parts[0].text;
+        appendMessage(reply, 'ai');
+        speakText(reply);
+      } else {
+        const errMsg = data.error ? data.error.message : 'Invalid API response. API Key check kara.';
+        appendMessage('Error: ' + errMsg, 'ai');
+      }
+    } catch (err) {
+      if (chatBox.contains(loadingDiv)) {
+        chatBox.removeChild(loadingDiv);
+      }
+      appendMessage('Network Error! Internet connection check kara.', 'ai');
+    }
+  }
+</script>
+
+</body>
+</html>
